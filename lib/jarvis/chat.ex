@@ -70,7 +70,7 @@ defmodule Jarvis.Chat do
 
   def list_threads do
     Thread
-    |> order_by([t], [desc_nulls_last: t.last_message_at, desc: t.inserted_at])
+    |> order_by([t], desc_nulls_last: t.last_message_at, desc: t.inserted_at)
     |> preload(thread_personas: :persona)
     |> Repo.all()
   end
@@ -192,13 +192,14 @@ defmodule Jarvis.Chat do
         %{role: msg.role, content: content}
       end)
 
-    system = build_system_prompt(system_prompt, %{
-      group: is_group,
-      collaboration: collaboration,
-      name: current_name,
-      round: round,
-      others: other_names
-    })
+    system =
+      build_system_prompt(system_prompt, %{
+        group: is_group,
+        collaboration: collaboration,
+        name: current_name,
+        round: round,
+        others: other_names
+      })
 
     if system do
       [%{role: "system", content: system} | history]
@@ -220,18 +221,24 @@ defmodule Jarvis.Chat do
       "Messages from others are prefixed with their name in brackets."
   end
 
-  defp build_system_prompt(base, %{group: true, collaboration: true, name: name, round: round, others: others}) do
+  defp build_system_prompt(base, %{
+         group: true,
+         collaboration: true,
+         name: name,
+         round: round,
+         others: others
+       }) do
     others_str = Enum.join(others, ", ")
 
     round_instructions =
       if round <= 1 do
         "This is the opening round. Share your perspective on the user's request. " <>
-        "You may address other participants directly by name."
+          "You may address other participants directly by name."
       else
         "This is a follow-up round. Build on what others have said. " <>
-        "You can agree, disagree, ask questions, or refine the group's position. " <>
-        "If the group has reached a solid conclusion or you have nothing meaningful to add, " <>
-        "end your message with exactly [DONE] on its own line."
+          "You can agree, disagree, ask questions, or refine the group's position. " <>
+          "If the group has reached a solid conclusion or you have nothing meaningful to add, " <>
+          "end your message with exactly [DONE] on its own line."
       end
 
     base <>

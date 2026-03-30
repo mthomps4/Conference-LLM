@@ -105,7 +105,10 @@ defmodule Jarvis.Chat.ThreadServer do
     {:ok, updated_thread} = Chat.update_thread(thread, %{last_message_at: now, title: title})
 
     broadcast_thread(state.thread_id, {:new_message, user_msg})
-    broadcast_global({:thread_updated, Jarvis.Repo.preload(updated_thread, thread_personas: :persona)})
+
+    broadcast_global(
+      {:thread_updated, Jarvis.Repo.preload(updated_thread, thread_personas: :persona)}
+    )
 
     # Read thread settings from metadata
     collaboration = get_in(thread.metadata, ["collaboration"]) == true
@@ -117,7 +120,16 @@ defmodule Jarvis.Chat.ThreadServer do
       Enum.map(thread_personas, fn tp ->
         p = tp.persona
         model = if is_group, do: p.group_model || p.model, else: p.model
-        %{id: p.id, name: p.name, model: model, system_prompt: p.system_prompt, thinking: p.thinking, group: is_group, paths: tp.paths || []}
+
+        %{
+          id: p.id,
+          name: p.name,
+          model: model,
+          system_prompt: p.system_prompt,
+          thinking: p.thinking,
+          group: is_group,
+          paths: tp.paths || []
+        }
       end)
 
     cancel_timer(state.idle_timer)
@@ -166,10 +178,16 @@ defmodule Jarvis.Chat.ThreadServer do
 
   @impl true
   # Ignore orphaned Ollama messages after stop
-  def handle_info({:ollama_chunk, _}, %{status: s} = state) when s != :streaming, do: {:noreply, state}
-  def handle_info({:ollama_tool_calls, _}, %{status: s} = state) when s != :streaming, do: {:noreply, state}
+  def handle_info({:ollama_chunk, _}, %{status: s} = state) when s != :streaming,
+    do: {:noreply, state}
+
+  def handle_info({:ollama_tool_calls, _}, %{status: s} = state) when s != :streaming,
+    do: {:noreply, state}
+
   def handle_info(:ollama_done, %{status: s} = state) when s != :streaming, do: {:noreply, state}
-  def handle_info({:ollama_error, _}, %{status: s} = state) when s != :streaming, do: {:noreply, state}
+
+  def handle_info({:ollama_error, _}, %{status: s} = state) when s != :streaming,
+    do: {:noreply, state}
 
   def handle_info({:ollama_chunk, content}, state) do
     new_buffer = state.buffer <> content
@@ -196,11 +214,20 @@ defmodule Jarvis.Chat.ThreadServer do
           {:ok, result} ->
             result_preview = String.slice(result, 0..200)
             suffix = if String.length(result) > 200, do: "...", else: ""
-            broadcast_thread(state.thread_id, {:message_delta, state.current_message_id, "`#{result_preview}#{suffix}`\n"})
+
+            broadcast_thread(
+              state.thread_id,
+              {:message_delta, state.current_message_id, "`#{result_preview}#{suffix}`\n"}
+            )
+
             %{tool_call: tc, result: result}
 
           {:error, reason} ->
-            broadcast_thread(state.thread_id, {:message_delta, state.current_message_id, "`Error: #{reason}`\n"})
+            broadcast_thread(
+              state.thread_id,
+              {:message_delta, state.current_message_id, "`Error: #{reason}`\n"}
+            )
+
             %{tool_call: tc, result: "Error: #{reason}"}
         end
       end)
@@ -222,7 +249,12 @@ defmodule Jarvis.Chat.ThreadServer do
       content: "",
       tool_calls:
         Enum.map(tool_calls, fn tc ->
-          %{function: %{name: tc["function"]["name"], arguments: tc["function"]["arguments"] || %{}}}
+          %{
+            function: %{
+              name: tc["function"]["name"],
+              arguments: tc["function"]["arguments"] || %{}
+            }
+          }
         end)
     }
 
@@ -253,7 +285,8 @@ defmodule Jarvis.Chat.ThreadServer do
         think: state.current_persona.thinking
       )
 
-      {:noreply, %{state | buffer: new_buffer, ollama_history: new_history, tool_round: new_round}}
+      {:noreply,
+       %{state | buffer: new_buffer, ollama_history: new_history, tool_round: new_round}}
     end
   end
 
@@ -269,7 +302,10 @@ defmodule Jarvis.Chat.ThreadServer do
 
     # Update the displayed message to remove [DONE] if it was streamed
     if done_signaled && state.buffer != clean_buffer do
-      broadcast_thread(state.thread_id, {:message_replace, state.current_message_id, clean_buffer})
+      broadcast_thread(
+        state.thread_id,
+        {:message_replace, state.current_message_id, clean_buffer}
+      )
     end
 
     finalize_persona_turn(%{state | buffer: clean_buffer, done_signaled: done_signaled})
@@ -317,12 +353,21 @@ defmodule Jarvis.Chat.ThreadServer do
     cond do
       # More personas queued in the current round
       state.pending_personas != [] ->
-        new_state = %{state | buffer: "", current_message_id: nil, current_persona: nil, ollama_history: [], tool_round: 0}
+        new_state = %{
+          state
+          | buffer: "",
+            current_message_id: nil,
+            current_persona: nil,
+            ollama_history: [],
+            tool_round: 0
+        }
+
         new_state = start_next_persona(new_state)
         {:noreply, new_state}
 
       # Collaboration mode: check if we should start another round
-      state.collaboration && !state.done_signaled && state.current_round < @max_collaboration_rounds ->
+      state.collaboration && !state.done_signaled &&
+          state.current_round < @max_collaboration_rounds ->
         next_round = state.current_round + 1
         Logger.info("Collaboration round #{next_round} for thread #{state.thread_id}")
         broadcast_thread(state.thread_id, {:collaboration_round, next_round})
@@ -343,7 +388,8 @@ defmodule Jarvis.Chat.ThreadServer do
         {:noreply, new_state}
 
       # Collaboration hit max rounds
-      state.collaboration && !state.done_signaled && state.current_round >= @max_collaboration_rounds ->
+      state.collaboration && !state.done_signaled &&
+          state.current_round >= @max_collaboration_rounds ->
         Logger.info("Collaboration max rounds reached for thread #{state.thread_id}")
         finish_streaming(state)
 

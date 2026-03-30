@@ -33,7 +33,16 @@ defmodule Jarvis.Chat.Persona do
 
   def changeset(persona, attrs) do
     persona
-    |> cast(attrs, [:name, :model, :group_model, :thinking, :system_prompt, :description, :color, :metadata])
+    |> cast(attrs, [
+      :name,
+      :model,
+      :group_model,
+      :thinking,
+      :system_prompt,
+      :description,
+      :color,
+      :metadata
+    ])
     |> validate_required([:name, :model, :color])
   end
 

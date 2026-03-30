@@ -153,7 +153,9 @@ defmodule JarvisWeb.PersonaLive do
                   <h3 class="font-bold truncate">{persona.name}</h3>
                   <p class="text-sm opacity-60">
                     {persona.model}
-                    <span :if={persona.group_model} class="opacity-50"> · group: {persona.group_model}</span>
+                    <span :if={persona.group_model} class="opacity-50">
+                       · group:  {persona.group_model}
+                    </span>
                   </p>
                 </div>
               </div>
@@ -216,14 +218,18 @@ defmodule JarvisWeb.PersonaLive do
             options={@models}
             prompt="Same as above"
           />
-          <p class="text-xs opacity-50 -mt-2 ml-1">Uses a different model in group chats — useful for collaboration</p>
+          <p class="text-xs opacity-50 -mt-2 ml-1">
+            Uses a different model in group chats — useful for collaboration
+          </p>
 
           <.input
             field={@form[:thinking]}
             label="Thinking"
             type="checkbox"
           />
-          <p class="text-xs opacity-50 -mt-2 ml-1">Let the model reason before responding — better answers but slower, and small models may spiral</p>
+          <p class="text-xs opacity-50 -mt-2 ml-1">
+            Let the model reason before responding — better answers but slower, and small models may spiral
+          </p>
 
           <.input
             field={@form[:system_prompt]}

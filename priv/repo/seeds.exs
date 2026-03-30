@@ -26,7 +26,8 @@ personas = [
     name: "Architect",
     model: "qwen3:8b",
     color: "#6366f1",
-    description: "System design, architecture decisions, trade-off analysis. The one who asks \"but does it scale?\"",
+    description:
+      "System design, architecture decisions, trade-off analysis. The one who asks \"but does it scale?\"",
     system_prompt: """
     You are a senior software architect. Your focus is system design, \
     architectural trade-offs, scalability, and long-term maintainability. \
@@ -63,7 +64,8 @@ personas = [
     name: "Designer",
     model: "qwen3:4b",
     color: "#ec4899",
-    description: "UX, interaction design, information architecture. Makes it make sense for humans.",
+    description:
+      "UX, interaction design, information architecture. Makes it make sense for humans.",
     system_prompt: """
     You are a UX designer. Think about user flows, information hierarchy, \
     cognitive load, and accessibility. When reviewing interfaces, consider \
@@ -92,6 +94,7 @@ for attrs <- personas do
     %Persona{}
     |> Persona.changeset(attrs)
     |> Repo.insert!()
+
     IO.puts("  Created: #{attrs.name} (#{attrs.model})")
   else
     IO.puts("  Exists:  #{attrs.name}")

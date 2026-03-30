@@ -73,7 +73,13 @@ defmodule JarvisWeb.ThreadLive do
       Phoenix.PubSub.unsubscribe(Jarvis.PubSub, "thread:#{old_thread.id}")
     end
 
-    {:noreply, assign(socket, active_thread: nil, messages: [], streaming_persona_name: nil, page_title: "Jarvis")}
+    {:noreply,
+     assign(socket,
+       active_thread: nil,
+       messages: [],
+       streaming_persona_name: nil,
+       page_title: "Jarvis"
+     )}
   end
 
   # --- Events ---
@@ -183,7 +189,8 @@ defmodule JarvisWeb.ThreadLive do
   end
 
   def handle_event("toggle_settings", _params, socket) do
-    {:noreply, assign(socket, show_settings: !socket.assigns.show_settings, expanded_persona_id: nil)}
+    {:noreply,
+     assign(socket, show_settings: !socket.assigns.show_settings, expanded_persona_id: nil)}
   end
 
   def handle_event("expand_persona", %{"id" => id}, socket) do
@@ -212,9 +219,11 @@ defmodule JarvisWeb.ThreadLive do
     {:ok, updated_persona} = Chat.update_persona(persona, %{thinking: !persona.thinking})
 
     socket = reload_active_thread(socket)
-    personas = Enum.map(socket.assigns.personas, fn p ->
-      if p.id == updated_persona.id, do: updated_persona, else: p
-    end)
+
+    personas =
+      Enum.map(socket.assigns.personas, fn p ->
+        if p.id == updated_persona.id, do: updated_persona, else: p
+      end)
 
     {:noreply, assign(socket, personas: personas)}
   end
@@ -224,9 +233,11 @@ defmodule JarvisWeb.ThreadLive do
     {:ok, updated_persona} = Chat.update_persona(persona, %{model: model})
 
     socket = reload_active_thread(socket)
-    personas = Enum.map(socket.assigns.personas, fn p ->
-      if p.id == updated_persona.id, do: updated_persona, else: p
-    end)
+
+    personas =
+      Enum.map(socket.assigns.personas, fn p ->
+        if p.id == updated_persona.id, do: updated_persona, else: p
+      end)
 
     {:noreply, assign(socket, personas: personas)}
   end
@@ -237,9 +248,11 @@ defmodule JarvisWeb.ThreadLive do
     {:ok, updated_persona} = Chat.update_persona(persona, %{group_model: group_model})
 
     socket = reload_active_thread(socket)
-    personas = Enum.map(socket.assigns.personas, fn p ->
-      if p.id == updated_persona.id, do: updated_persona, else: p
-    end)
+
+    personas =
+      Enum.map(socket.assigns.personas, fn p ->
+        if p.id == updated_persona.id, do: updated_persona, else: p
+      end)
 
     {:noreply, assign(socket, personas: personas)}
   end
@@ -290,7 +303,6 @@ defmodule JarvisWeb.ThreadLive do
     {:noreply, reload_active_thread(socket)}
   end
 
-
   def handle_event("toggle_collaboration", _params, socket) do
     thread = socket.assigns.active_thread
     current = get_in(thread.metadata, ["collaboration"]) == true
@@ -305,7 +317,6 @@ defmodule JarvisWeb.ThreadLive do
 
     {:noreply, assign(socket, active_thread: updated, threads: threads)}
   end
-
 
   # --- PubSub: Thread-specific ---
 
@@ -522,10 +533,18 @@ defmodule JarvisWeb.ThreadLive do
           <div class="p-3 border-b border-base-300 flex items-center justify-between">
             <h2 class="font-semibold">Messages</h2>
             <div class="flex items-center gap-1">
-              <.link navigate={~p"/contacts"} class="btn btn-ghost btn-sm btn-circle" title="Manage Contacts">
+              <.link
+                navigate={~p"/contacts"}
+                class="btn btn-ghost btn-sm btn-circle"
+                title="Manage Contacts"
+              >
                 <.icon name="hero-user-group" class="size-5" />
               </.link>
-              <button phx-click="toggle_new_thread" class="btn btn-ghost btn-sm btn-circle" title="New Thread">
+              <button
+                phx-click="toggle_new_thread"
+                class="btn btn-ghost btn-sm btn-circle"
+                title="New Thread"
+              >
                 <.icon name="hero-pencil-square" class="size-5" />
               </button>
             </div>
@@ -546,8 +565,7 @@ defmodule JarvisWeb.ThreadLive do
                   ]}
                   title={if @group_mode, do: "Back to direct", else: "Create group chat"}
                 >
-                  <.icon name="hero-user-group" class="size-3.5" />
-                  Group
+                  <.icon name="hero-user-group" class="size-3.5" /> Group
                 </button>
                 <button phx-click="toggle_new_thread" class="btn btn-ghost btn-xs btn-circle">
                   <.icon name="hero-x-mark" class="size-4" />
@@ -577,7 +595,11 @@ defmodule JarvisWeb.ThreadLive do
                   style={"background-color: #{persona.color}; color: white;"}
                 >
                   {persona.name}
-                  <button phx-click="toggle_persona_selection" phx-value-id={persona.id} class="hover:opacity-70">
+                  <button
+                    phx-click="toggle_persona_selection"
+                    phx-value-id={persona.id}
+                    class="hover:opacity-70"
+                  >
                     <.icon name="hero-x-mark" class="size-3" />
                   </button>
                 </span>
@@ -597,7 +619,8 @@ defmodule JarvisWeb.ThreadLive do
                 phx-value-id={persona.id}
                 class={[
                   "flex items-center gap-3 p-2 rounded-lg hover:bg-base-200 transition-colors w-full text-left",
-                  @group_mode && MapSet.member?(@selected_persona_ids, persona.id) && "bg-base-200 ring-2 ring-primary/30"
+                  @group_mode && MapSet.member?(@selected_persona_ids, persona.id) &&
+                    "bg-base-200 ring-2 ring-primary/30"
                 ]}
               >
                 <div class="relative shrink-0">
@@ -644,7 +667,8 @@ defmodule JarvisWeb.ThreadLive do
               ]}
             >
               <%!-- Avatar: single or stacked for groups --%>
-              <div :if={!is_group?(thread)}
+              <div
+                :if={!is_group?(thread)}
                 class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 relative"
                 style={"background-color: #{persona_color_for(thread)}"}
               >
@@ -656,7 +680,10 @@ defmodule JarvisWeb.ThreadLive do
               </div>
               <div :if={is_group?(thread)} class="w-10 h-10 shrink-0 relative">
                 <div
-                  :for={{persona, idx} <- thread_personas_list(thread) |> Enum.take(3) |> Enum.with_index()}
+                  :for={
+                    {persona, idx} <-
+                      thread_personas_list(thread) |> Enum.take(3) |> Enum.with_index()
+                  }
                   class="absolute w-7 h-7 rounded-full flex items-center justify-center text-white font-bold text-[10px] border-2 border-base-100"
                   style={"background-color: #{persona.color}; left: #{idx * 8}px; top: #{idx * 4}px; z-index: #{3 - idx};"}
                 >
@@ -689,7 +716,10 @@ defmodule JarvisWeb.ThreadLive do
         <%!-- Chat pane --%>
         <div class="flex-1 flex flex-col min-w-0">
           <%!-- Empty state --%>
-          <div :if={!@active_thread} class="flex-1 flex items-center justify-center text-base-content/30">
+          <div
+            :if={!@active_thread}
+            class="flex-1 flex items-center justify-center text-base-content/30"
+          >
             <div class="text-center space-y-3">
               <.icon name="hero-chat-bubble-left-right" class="size-16 mx-auto" />
               <p class="text-lg">Select a conversation</p>
@@ -703,7 +733,8 @@ defmodule JarvisWeb.ThreadLive do
             <div class="px-4 py-3 border-b border-base-300 flex items-center justify-between shrink-0">
               <div class="flex items-center gap-3">
                 <%!-- Header avatar --%>
-                <div :if={!is_group?(@active_thread)}
+                <div
+                  :if={!is_group?(@active_thread)}
                   class="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0"
                   style={"background-color: #{persona_color_for(@active_thread)}"}
                 >
@@ -719,24 +750,29 @@ defmodule JarvisWeb.ThreadLive do
                   </div>
                 </div>
                 <div>
-                  <h2 class="font-semibold text-sm leading-tight">{thread_display_name(@active_thread)}</h2>
+                  <h2 class="font-semibold text-sm leading-tight">
+                    {thread_display_name(@active_thread)}
+                  </h2>
                   <span class="text-xs opacity-60">
                     {if is_group?(@active_thread),
                       do: "#{length(thread_personas_list(@active_thread))} participants",
-                      else: first_persona(@active_thread) && first_persona(@active_thread).model}
-                    · {status_label(@thread_statuses[@active_thread.id], @streaming_persona_name)}
+                      else: first_persona(@active_thread) && first_persona(@active_thread).model} · {status_label(
+                      @thread_statuses[@active_thread.id],
+                      @streaming_persona_name
+                    )}
                   </span>
                 </div>
               </div>
               <div class="flex items-center gap-1">
                 <%!-- Quick status badges --%>
-                <span :if={any_persona_has_paths?(@active_thread)} class="badge badge-ghost badge-xs gap-1 opacity-60">
-                  <.icon name="hero-folder-open" class="size-3" />
-                  Files
+                <span
+                  :if={any_persona_has_paths?(@active_thread)}
+                  class="badge badge-ghost badge-xs gap-1 opacity-60"
+                >
+                  <.icon name="hero-folder-open" class="size-3" /> Files
                 </span>
                 <span :if={collaboration?(@active_thread)} class="badge badge-primary badge-xs gap-1">
-                  <.icon name="hero-chat-bubble-left-ellipsis" class="size-3" />
-                  Collab
+                  <.icon name="hero-chat-bubble-left-ellipsis" class="size-3" /> Collab
                 </span>
                 <button
                   phx-click="toggle_settings"
@@ -762,7 +798,11 @@ defmodule JarvisWeb.ThreadLive do
             <div class="flex-1 flex min-h-0">
               <%!-- Messages + Input --%>
               <div class="flex-1 flex flex-col min-h-0">
-                <div id="messages" class="flex-1 overflow-y-auto px-4 py-3 space-y-3" phx-hook="ScrollBottom">
+                <div
+                  id="messages"
+                  class="flex-1 overflow-y-auto px-4 py-3 space-y-3"
+                  phx-hook="ScrollBottom"
+                >
                   <div
                     :for={msg <- @messages}
                     class={["flex", if(msg.role == "user", do: "justify-end", else: "justify-start")]}
@@ -775,12 +815,18 @@ defmodule JarvisWeb.ThreadLive do
                         {initials(message_persona_name(msg, @active_thread))}
                       </div>
                       <div class="flex flex-col">
-                        <span class="text-xs opacity-50 mb-1">{message_persona_name(msg, @active_thread)}</span>
+                        <span class="text-xs opacity-50 mb-1">
+                          {message_persona_name(msg, @active_thread)}
+                        </span>
                         <div class="rounded-2xl px-4 py-2 bg-base-300 text-base-content rounded-bl-sm">
                           <span
-                            :if={msg.content == "" and streaming?(@thread_statuses[@active_thread.id])}
+                            :if={
+                              msg.content == "" and streaming?(@thread_statuses[@active_thread.id])
+                            }
                             class="inline-block animate-pulse"
-                          >...</span>
+                          >
+                            ...
+                          </span>
                           <.markdown :if={msg.content != ""} text={msg.content} />
                         </div>
                       </div>
@@ -826,7 +872,10 @@ defmodule JarvisWeb.ThreadLive do
               </div>
 
               <%!-- Settings slide-out panel --%>
-              <aside :if={@show_settings} class="w-80 border-l border-base-300 bg-base-200/30 flex flex-col shrink-0 overflow-y-auto">
+              <aside
+                :if={@show_settings}
+                class="w-80 border-l border-base-300 bg-base-200/30 flex flex-col shrink-0 overflow-y-auto"
+              >
                 <div class="p-3 border-b border-base-300 flex items-center justify-between">
                   <h3 class="font-semibold text-sm">Thread Settings</h3>
                   <button phx-click="toggle_settings" class="btn btn-ghost btn-xs btn-circle">
@@ -861,7 +910,9 @@ defmodule JarvisWeb.ThreadLive do
                       />
                       <span class="text-sm font-medium">Collaboration</span>
                     </label>
-                    <p class="text-xs opacity-40 mt-1">Personas discuss freely until one signals done.</p>
+                    <p class="text-xs opacity-40 mt-1">
+                      Personas discuss freely until one signals done.
+                    </p>
                   </div>
                 </div>
 
@@ -877,7 +928,10 @@ defmodule JarvisWeb.ThreadLive do
                         phx-value-id={tp.persona.id}
                         class={[
                           "flex items-center gap-2 p-2 rounded-lg w-full text-left transition-colors",
-                          if(@expanded_persona_id == tp.persona.id, do: "bg-base-300", else: "hover:bg-base-200")
+                          if(@expanded_persona_id == tp.persona.id,
+                            do: "bg-base-300",
+                            else: "hover:bg-base-200"
+                          )
                         ]}
                       >
                         <div
@@ -889,7 +943,9 @@ defmodule JarvisWeb.ThreadLive do
                         <div class="min-w-0 flex-1">
                           <div class="text-sm font-medium truncate">{tp.persona.name}</div>
                           <div class="text-xs opacity-50 truncate">
-                            {if is_group?(@active_thread), do: tp.persona.group_model || tp.persona.model, else: tp.persona.model}
+                            {if is_group?(@active_thread),
+                              do: tp.persona.group_model || tp.persona.model,
+                              else: tp.persona.model}
                           </div>
                         </div>
                         <div class="flex items-center gap-1">
@@ -897,20 +953,32 @@ defmodule JarvisWeb.ThreadLive do
                             <.icon name="hero-folder-open" class="size-2.5" />
                           </span>
                           <.icon
-                            name={if @expanded_persona_id == tp.persona.id, do: "hero-chevron-up", else: "hero-chevron-down"}
+                            name={
+                              if @expanded_persona_id == tp.persona.id,
+                                do: "hero-chevron-up",
+                                else: "hero-chevron-down"
+                            }
                             class="size-4 opacity-40"
                           />
                         </div>
                       </button>
 
                       <%!-- Expanded persona settings --%>
-                      <div :if={@expanded_persona_id == tp.persona.id} class="ml-10 mr-2 mt-1 mb-2 space-y-3">
+                      <div
+                        :if={@expanded_persona_id == tp.persona.id}
+                        class="ml-10 mr-2 mt-1 mb-2 space-y-3"
+                      >
                         <%!-- File paths --%>
                         <div>
                           <label class="text-xs opacity-50">File Access</label>
                           <div class="mt-1 space-y-1">
-                            <div :for={{path, idx} <- Enum.with_index(tp.paths)} class="flex items-center gap-1">
-                              <span class="text-xs font-mono opacity-70 flex-1 truncate" title={path}>{shorten_path(path)}</span>
+                            <div
+                              :for={{path, idx} <- Enum.with_index(tp.paths)}
+                              class="flex items-center gap-1"
+                            >
+                              <span class="text-xs font-mono opacity-70 flex-1 truncate" title={path}>
+                                {shorten_path(path)}
+                              </span>
                               <button
                                 phx-click="remove_persona_path"
                                 phx-value-tp-id={tp.id}
@@ -946,7 +1014,9 @@ defmodule JarvisWeb.ThreadLive do
                                 :for={m <- @models}
                                 value={m}
                                 selected={m == tp.persona.model}
-                              >{m}</option>
+                              >
+                                {m}
+                              </option>
                             </select>
                           </form>
                         </div>
@@ -957,12 +1027,16 @@ defmodule JarvisWeb.ThreadLive do
                           <form phx-change="update_persona_group_model" class="mt-0.5">
                             <input type="hidden" name="persona_id" value={tp.persona.id} />
                             <select name="model" class="select select-bordered select-xs w-full">
-                              <option value="" selected={is_nil(tp.persona.group_model)}>Same as model</option>
+                              <option value="" selected={is_nil(tp.persona.group_model)}>
+                                Same as model
+                              </option>
                               <option
                                 :for={m <- @models}
                                 value={m}
                                 selected={m == tp.persona.group_model}
-                              >{m}</option>
+                              >
+                                {m}
+                              </option>
                             </select>
                           </form>
                         </div>

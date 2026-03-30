@@ -2,7 +2,7 @@ import Config
 
 # Configure your database
 config :jarvis, Jarvis.Repo,
-  username: "postgres",
+  username: "matt",
   password: "postgres",
   hostname: "localhost",
   database: "jarvis_dev",

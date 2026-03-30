@@ -1,0 +1,15 @@
+# Copy to .envrc and fill in values, then run: direnv allow
+
+# Required for production
+export DATABASE_URL="ecto://USER:PASS@HOST/DATABASE"
+export SECRET_KEY_BASE="" # generate with: mix phx.gen.secret
+
+# Recommended for production
+export PHX_HOST="example.com"
+export PHX_SERVER="true"
+
+# Optional
+export PORT="4000"
+export POOL_SIZE="10"
+# export ECTO_IPV6="true"
+# export DNS_CLUSTER_QUERY=""

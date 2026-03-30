@@ -43,6 +43,19 @@ mix phx.server     # start on localhost:4000
 
 The web UI is at `http://localhost:4000/chat` — useful for testing, but the API is the primary interface.
 
+### Tailscale Access (Arch Linux)
+
+If you're running on Arch with `firewalld`, Tailscale traffic is blocked by default because `firewalld` doesn't trust the `tailscale0` interface. Add it to the trusted zone:
+
+```bash
+sudo firewall-cmd --zone=trusted --add-interface=tailscale0 --permanent
+sudo firewall-cmd --reload
+```
+
+Then access Jarvis from any device on your tailnet at `http://<tailscale-hostname>:4000`.
+
+> **Note:** Ubuntu doesn't need this — it doesn't run `firewalld` by default. If you hit "Connection refused" over Tailscale but `localhost` works, this is likely the fix.
+
 ---
 
 ## Roadmap

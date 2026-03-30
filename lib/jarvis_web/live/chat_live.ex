@@ -90,13 +90,19 @@ defmodule JarvisWeb.ChatLive do
       </div>
 
       <div id="messages" class="flex-1 overflow-y-auto py-2 space-y-3" phx-hook="ScrollBottom">
-        <div :for={msg <- @messages} class={["flex flex-col", if(msg.role == "user", do: "items-end", else: "items-start")]}>
+        <div
+          :for={msg <- @messages}
+          class={["flex flex-col", if(msg.role == "user", do: "items-end", else: "items-start")]}
+        >
           <span class="text-xs opacity-50 mb-1">
             {if msg.role == "user", do: "You", else: @selected_model}
           </span>
           <div class={[
             "rounded-xl px-4 py-2 max-w-[75%]",
-            if(msg.role == "user", do: "bg-primary text-primary-content", else: "bg-neutral text-neutral-content")
+            if(msg.role == "user",
+              do: "bg-primary text-primary-content",
+              else: "bg-neutral text-neutral-content"
+            )
           ]}>
             <span :if={msg.content == "" and @loading} class="inline-block animate-pulse">...</span>
             <.markdown :if={msg.content != ""} text={msg.content} />

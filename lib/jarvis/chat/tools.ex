@@ -33,7 +33,8 @@ defmodule Jarvis.Chat.Tools do
             properties: %{
               path: %{
                 type: "string",
-                description: "Absolute path or path relative to one of your accessible directories: #{paths_desc}"
+                description:
+                  "Absolute path or path relative to one of your accessible directories: #{paths_desc}"
               }
             },
             required: ["path"]
@@ -52,7 +53,8 @@ defmodule Jarvis.Chat.Tools do
             properties: %{
               path: %{
                 type: "string",
-                description: "Absolute path or path relative to an accessible directory: #{paths_desc}"
+                description:
+                  "Absolute path or path relative to an accessible directory: #{paths_desc}"
               },
               content: %{
                 type: "string",
@@ -75,7 +77,8 @@ defmodule Jarvis.Chat.Tools do
             properties: %{
               path: %{
                 type: "string",
-                description: "Absolute path or path relative to an accessible directory: #{paths_desc}"
+                description:
+                  "Absolute path or path relative to an accessible directory: #{paths_desc}"
               }
             },
             required: ["path"]
@@ -99,7 +102,8 @@ defmodule Jarvis.Chat.Tools do
               },
               working_directory: %{
                 type: "string",
-                description: "Absolute path or path relative to an accessible directory: #{paths_desc}"
+                description:
+                  "Absolute path or path relative to an accessible directory: #{paths_desc}"
               }
             },
             required: ["command"]
