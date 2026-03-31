@@ -457,13 +457,19 @@ defmodule JarvisWeb.CoreComponents do
   def markdown(assigns) do
     html =
       assigns.text
-      |> Earmark.as_html!(code_class_prefix: "")
+      |> Earmark.as_html!(code_class_prefix: "language-")
       |> inject_tailwind_classes()
 
     assigns = assign(assigns, :html, html)
 
     ~H"""
-    <div class="space-y-2 text-sm leading-relaxed">{Phoenix.HTML.raw(@html)}</div>
+    <div
+      class="space-y-2 text-sm leading-relaxed"
+      phx-hook="Highlight"
+      id={"md-#{System.unique_integer([:positive])}"}
+    >
+      {Phoenix.HTML.raw(@html)}
+    </div>
     """
   end
 
@@ -471,8 +477,8 @@ defmodule JarvisWeb.CoreComponents do
     "<p" => "mb-2 last:mb-0",
     "<strong" => "font-bold",
     "<em" => "italic",
-    "<code" => "bg-base-300/50 px-1 py-0.5 rounded text-xs font-mono",
-    "<pre" => "bg-base-300 p-3 rounded-lg overflow-x-auto my-2",
+    "<code" => "text-xs font-mono",
+    "<pre" => "bg-base-300 p-3 rounded-lg overflow-x-auto my-2 text-xs",
     "<ul" => "list-disc pl-5 space-y-1",
     "<ol" => "list-decimal pl-5 space-y-1",
     "<li" => "",

@@ -23,6 +23,10 @@ end
 config :jarvis, JarvisWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
+if ollama_url = System.get_env("OLLAMA_URL") do
+  config :jarvis, Jarvis.Ollama, base_url: ollama_url
+end
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||

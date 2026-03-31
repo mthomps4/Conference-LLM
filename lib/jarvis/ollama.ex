@@ -1,10 +1,18 @@
 defmodule Jarvis.Ollama do
+  @moduledoc """
+  Ollama LLM provider. Implements the Jarvis.LLM behaviour.
+  """
   use GenServer
+  @behaviour Jarvis.LLM
 
   require Logger
 
-  @base_url "http://localhost:11434"
   @default_model "qwen3:8b"
+
+  defp base_url do
+    Application.get_env(:jarvis, __MODULE__, [])
+    |> Keyword.get(:base_url, "http://localhost:11434")
+  end
 
   # --- Client API ---
 
@@ -12,34 +20,17 @@ defmodule Jarvis.Ollama do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
-  @doc """
-  Send a list of messages and get a response.
-
-      Jarvis.Ollama.chat([%{role: "user", content: "Hello"}])
-  """
+  @impl Jarvis.LLM
   def chat(messages, model \\ @default_model) when is_list(messages) do
     GenServer.call(__MODULE__, {:chat, messages, model}, :timer.seconds(120))
   end
 
-  @doc """
-  List available models from Ollama.
-  """
+  @impl Jarvis.LLM
   def list_models do
     GenServer.call(__MODULE__, :list_models)
   end
 
-  @doc """
-  Stream a chat response, sending chunks to the given process.
-
-  Options:
-    - `:tools` — list of tool definitions (Ollama format) to enable tool calling
-
-  Sends:
-    - `{:ollama_chunk, content}` for each token
-    - `{:ollama_tool_calls, tool_calls}` when the model wants to call tools
-    - `:ollama_done` when generation is complete (text-only, no tool calls)
-    - `{:ollama_error, reason}` on failure
-  """
+  @impl Jarvis.LLM
   def stream_chat(pid, messages, model \\ @default_model, opts \\ [])
       when is_list(messages) do
     tools = Keyword.get(opts, :tools, [])
@@ -50,7 +41,7 @@ defmodule Jarvis.Ollama do
       |> maybe_add_tools(tools)
 
     Task.start(fn ->
-      case Req.post("#{@base_url}/api/chat",
+      case Req.post("#{base_url()}/api/chat",
              json: body,
              receive_timeout: :timer.seconds(120),
              into: fn {:data, data}, {req, resp} ->
@@ -80,6 +71,7 @@ defmodule Jarvis.Ollama do
     end)
   end
 
+  @impl Jarvis.LLM
   def default_model, do: @default_model
 
   # --- Server callbacks ---
@@ -93,7 +85,7 @@ defmodule Jarvis.Ollama do
   def handle_call({:chat, messages, model}, _from, state) do
     body = %{model: model, messages: messages, stream: false}
 
-    case Req.post("#{@base_url}/api/chat", json: body, receive_timeout: :timer.seconds(120)) do
+    case Req.post("#{base_url()}/api/chat", json: body, receive_timeout: :timer.seconds(120)) do
       {:ok, %Req.Response{status: 200, body: %{"message" => %{"content" => content}}}} ->
         {:reply, {:ok, content}, state}
 
@@ -108,7 +100,7 @@ defmodule Jarvis.Ollama do
   end
 
   def handle_call(:list_models, _from, state) do
-    case Req.get("#{@base_url}/api/tags") do
+    case Req.get("#{base_url()}/api/tags") do
       {:ok, %Req.Response{status: 200, body: %{"models" => models}}} ->
         names = Enum.map(models, & &1["name"])
         {:reply, {:ok, names}, state}

@@ -1,18 +1,20 @@
-defmodule JarvisWeb.PersonaLive do
+defmodule JarvisWeb.AgentLive do
   use JarvisWeb, :live_view
 
-  alias Jarvis.Chat
+  alias Jarvis.Agents
   alias Jarvis.Chat.Persona
 
   @impl true
   def mount(_params, _session, socket) do
+    llm = Jarvis.LLM.provider()
+
     models =
-      case Jarvis.Ollama.list_models() do
+      case llm.list_models() do
         {:ok, m} -> m
-        _ -> [Jarvis.Ollama.default_model()]
+        _ -> [llm.default_model()]
       end
 
-    {:ok, assign(socket, models: models, personas: Chat.list_personas())}
+    {:ok, assign(socket, models: models, agents: Agents.list_agents())}
   end
 
   @impl true
@@ -21,23 +23,23 @@ defmodule JarvisWeb.PersonaLive do
   end
 
   defp apply_action(socket, :index, _params) do
-    assign(socket, persona: nil, form: nil, page_title: "Contacts")
+    assign(socket, persona: nil, form: nil, page_title: "Agents")
   end
 
   defp apply_action(socket, :new, _params) do
     persona = %Persona{color: "#6366f1"}
-    changeset = Chat.change_persona(persona)
+    changeset = Agents.change_agent(persona)
 
     assign(socket,
       persona: persona,
       form: to_form(changeset),
-      page_title: "New Contact"
+      page_title: "New Agent"
     )
   end
 
   defp apply_action(socket, :edit, %{"id" => id}) do
-    persona = Chat.get_persona!(id)
-    changeset = Chat.change_persona(persona)
+    persona = Agents.get_agent!(id)
+    changeset = Agents.change_agent(persona)
 
     assign(socket,
       persona: persona,
@@ -46,60 +48,56 @@ defmodule JarvisWeb.PersonaLive do
     )
   end
 
-  # --- Events ---
-
   @impl true
   def handle_event("validate", %{"persona" => params}, socket) do
     changeset =
       socket.assigns.persona
-      |> Chat.change_persona(params)
+      |> Agents.change_agent(params)
       |> Map.put(:action, :validate)
 
     {:noreply, assign(socket, form: to_form(changeset))}
   end
 
   def handle_event("save", %{"persona" => params}, socket) do
-    save_persona(socket, socket.assigns.live_action, params)
+    save_agent(socket, socket.assigns.live_action, params)
   end
 
   def handle_event("delete", %{"id" => id}, socket) do
-    persona = Chat.get_persona!(id)
-    {:ok, _} = Chat.delete_persona(persona)
-    personas = Enum.reject(socket.assigns.personas, &(&1.id == persona.id))
+    persona = Agents.get_agent!(id)
+    {:ok, _} = Agents.delete_agent(persona)
+    agents = Enum.reject(socket.assigns.agents, &(&1.id == persona.id))
 
     {:noreply,
      socket
-     |> assign(personas: personas)
+     |> assign(agents: agents)
      |> put_flash(:info, "#{persona.name} deleted")}
   end
 
-  defp save_persona(socket, :new, params) do
-    case Chat.create_persona(params) do
-      {:ok, _persona} ->
+  defp save_agent(socket, :new, params) do
+    case Agents.create_agent(params) do
+      {:ok, _} ->
         {:noreply,
          socket
-         |> put_flash(:info, "Contact created")
-         |> push_navigate(to: ~p"/contacts")}
+         |> put_flash(:info, "Agent created")
+         |> push_navigate(to: ~p"/agents")}
 
       {:error, changeset} ->
         {:noreply, assign(socket, form: to_form(changeset))}
     end
   end
 
-  defp save_persona(socket, :edit, params) do
-    case Chat.update_persona(socket.assigns.persona, params) do
-      {:ok, _persona} ->
+  defp save_agent(socket, :edit, params) do
+    case Agents.update_agent(socket.assigns.persona, params) do
+      {:ok, _} ->
         {:noreply,
          socket
-         |> put_flash(:info, "Contact updated")
-         |> push_navigate(to: ~p"/contacts")}
+         |> put_flash(:info, "Agent updated")
+         |> push_navigate(to: ~p"/agents")}
 
       {:error, changeset} ->
         {:noreply, assign(socket, form: to_form(changeset))}
     end
   end
-
-  # --- Helpers ---
 
   defp initials(name) when is_binary(name) do
     name
@@ -112,8 +110,6 @@ defmodule JarvisWeb.PersonaLive do
 
   defp initials(_), do: "?"
 
-  # --- Render ---
-
   @impl true
   def render(assigns) do
     ~H"""
@@ -122,57 +118,58 @@ defmodule JarvisWeb.PersonaLive do
       <div :if={@live_action == :index} class="space-y-6">
         <div class="flex items-center justify-between">
           <div>
-            <h1 class="text-2xl font-bold">Contacts</h1>
-            <p class="text-sm opacity-60 mt-1">Your AI contacts — each tied to a model and persona</p>
+            <h1 class="text-2xl font-bold">Agents</h1>
+            <p class="text-sm opacity-60 mt-1">
+              AI agents — each with a model, persona, and system prompt
+            </p>
           </div>
-          <.link navigate={~p"/contacts/new"} class="btn btn-primary">
-            <.icon name="hero-plus" class="size-5" /> New Contact
+          <.link navigate={~p"/agents/new"} class="btn btn-primary">
+            <.icon name="hero-plus" class="size-5" /> New Agent
           </.link>
         </div>
 
-        <div :if={@personas == []} class="text-center py-16">
-          <.icon name="hero-user-plus" class="size-16 mx-auto opacity-30" />
-          <p class="mt-4 text-lg opacity-60">No contacts yet</p>
-          <p class="text-sm opacity-40 mt-1">Create your first AI contact to start chatting</p>
-          <.link navigate={~p"/contacts/new"} class="btn btn-primary mt-6">
-            Create Your First Contact
+        <div :if={@agents == []} class="text-center py-16">
+          <.icon name="hero-cpu-chip" class="size-16 mx-auto opacity-30" />
+          <p class="mt-4 text-lg opacity-60">No agents yet</p>
+          <.link navigate={~p"/agents/new"} class="btn btn-primary mt-6">
+            Create Your First Agent
           </.link>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div :for={persona <- @personas} class="card bg-base-200 shadow-sm">
+          <div :for={agent <- @agents} class="card bg-base-200 shadow-sm">
             <div class="card-body p-4">
               <div class="flex items-start gap-3">
                 <div
                   class="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0"
-                  style={"background-color: #{persona.color}"}
+                  style={"background-color: #{agent.color}"}
                 >
-                  {initials(persona.name)}
+                  {initials(agent.name)}
                 </div>
                 <div class="min-w-0 flex-1">
-                  <h3 class="font-bold truncate">{persona.name}</h3>
+                  <h3 class="font-bold truncate">{agent.name}</h3>
                   <p class="text-sm opacity-60">
-                    {persona.model}
-                    <span :if={persona.group_model} class="opacity-50">
-                       · group:  {persona.group_model}
+                    {agent.model}
+                    <span :if={agent.group_model} class="opacity-50">
+                      · group: {agent.group_model}
                     </span>
                   </p>
                 </div>
               </div>
-              <p :if={persona.description} class="text-sm opacity-70 mt-2 line-clamp-2">
-                {persona.description}
+              <p :if={agent.description} class="text-sm opacity-70 mt-2 line-clamp-2">
+                {agent.description}
               </p>
-              <p :if={persona.system_prompt} class="text-xs opacity-50 mt-1 line-clamp-1 font-mono">
-                {String.slice(persona.system_prompt, 0..80)}
+              <p :if={agent.system_prompt} class="text-xs opacity-50 mt-1 line-clamp-1 font-mono">
+                {String.slice(agent.system_prompt, 0..80)}
               </p>
               <div class="card-actions justify-end mt-3">
-                <.link navigate={~p"/contacts/#{persona.id}/edit"} class="btn btn-ghost btn-sm">
+                <.link navigate={~p"/agents/#{agent.id}/edit"} class="btn btn-ghost btn-sm">
                   Edit
                 </.link>
                 <button
                   phx-click="delete"
-                  phx-value-id={persona.id}
-                  data-confirm={"Delete #{persona.name}? All conversations with this contact will also be deleted."}
+                  phx-value-id={agent.id}
+                  data-confirm={"Delete #{agent.name}?"}
                   class="btn btn-ghost btn-sm text-error"
                 >
                   Delete
@@ -184,23 +181,23 @@ defmodule JarvisWeb.PersonaLive do
 
         <div class="pt-4">
           <.link navigate={~p"/"} class="btn btn-ghost btn-sm">
-            <.icon name="hero-arrow-left" class="size-4" /> Back to Messages
+            <.icon name="hero-arrow-left" class="size-4" /> Back to Workspace
           </.link>
         </div>
       </div>
 
       <%!-- New / Edit --%>
       <div :if={@live_action in [:new, :edit]} class="max-w-lg mx-auto">
-        <.link navigate={~p"/contacts"} class="btn btn-ghost btn-sm mb-4">
-          <.icon name="hero-arrow-left" class="size-4" /> Back to Contacts
+        <.link navigate={~p"/agents"} class="btn btn-ghost btn-sm mb-4">
+          <.icon name="hero-arrow-left" class="size-4" /> Back to Agents
         </.link>
 
         <h1 class="text-2xl font-bold mb-6">
-          {if @live_action == :new, do: "New Contact", else: "Edit Contact"}
+          {if @live_action == :new, do: "New Agent", else: "Edit Agent"}
         </h1>
 
         <.form for={@form} phx-change="validate" phx-submit="save" class="space-y-4">
-          <.input field={@form[:name]} label="Name" placeholder="e.g. Code Assistant" required />
+          <.input field={@form[:name]} label="Name" placeholder="e.g. Architect" required />
 
           <.input
             field={@form[:model]}
@@ -219,16 +216,12 @@ defmodule JarvisWeb.PersonaLive do
             prompt="Same as above"
           />
           <p class="text-xs opacity-50 -mt-2 ml-1">
-            Uses a different model in group chats — useful for collaboration
+            Uses a different model in group chats
           </p>
 
-          <.input
-            field={@form[:thinking]}
-            label="Thinking"
-            type="checkbox"
-          />
+          <.input field={@form[:thinking]} label="Extended Thinking" type="checkbox" />
           <p class="text-xs opacity-50 -mt-2 ml-1">
-            Let the model reason before responding — better answers but slower, and small models may spiral
+            Let the model reason before responding
           </p>
 
           <.input
@@ -243,7 +236,7 @@ defmodule JarvisWeb.PersonaLive do
             field={@form[:description]}
             label="Description (optional)"
             type="textarea"
-            placeholder="What this contact is good at..."
+            placeholder="What this agent is good at..."
             rows={2}
           />
 
@@ -283,16 +276,16 @@ defmodule JarvisWeb.PersonaLive do
               {initials(@form[:name].value || "?")}
             </div>
             <div>
-              <div class="font-bold">{@form[:name].value || "Contact Name"}</div>
+              <div class="font-bold">{@form[:name].value || "Agent Name"}</div>
               <div class="text-sm opacity-60">{@form[:model].value || "No model selected"}</div>
             </div>
           </div>
 
           <div class="flex gap-3 pt-4">
             <button type="submit" class="btn btn-primary">
-              {if @live_action == :new, do: "Create Contact", else: "Save Changes"}
+              {if @live_action == :new, do: "Create Agent", else: "Save Changes"}
             </button>
-            <.link navigate={~p"/contacts"} class="btn btn-ghost">Cancel</.link>
+            <.link navigate={~p"/agents"} class="btn btn-ghost">Cancel</.link>
           </div>
         </.form>
       </div>

@@ -11,6 +11,8 @@ config :jarvis,
   ecto_repos: [Jarvis.Repo],
   generators: [timestamp_type: :utc_datetime]
 
+config :jarvis, Jarvis.Ollama, base_url: "http://localhost:11434"
+
 # Configure the endpoint
 config :jarvis, JarvisWeb.Endpoint,
   url: [host: "localhost"],

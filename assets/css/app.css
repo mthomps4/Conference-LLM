@@ -102,4 +102,14 @@
 /* Make LiveView wrapper divs transparent for layout */
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
-/* This file is for your main application CSS */
+/* Inline code styling (not in pre blocks) */
+:not(pre) > code {
+  background-color: oklch(from currentColor l c h / 0.1);
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+}
+
+/* highlight.js theme overrides to match daisyUI */
+.hljs {
+  background: transparent !important;
+}

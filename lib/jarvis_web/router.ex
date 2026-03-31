@@ -18,11 +18,13 @@ defmodule JarvisWeb.Router do
     pipe_through :browser
 
     live_session :default do
-      live "/", ThreadLive, :index
-      live "/thread/:id", ThreadLive, :show
-      live "/contacts", PersonaLive, :index
-      live "/contacts/new", PersonaLive, :new
-      live "/contacts/:id/edit", PersonaLive, :edit
+      live "/", WorkspaceLive, :index
+      live "/inbox/:id", WorkspaceLive, :inbox
+      live "/project/:project_id", WorkspaceLive, :project
+      live "/project/:project_id/thread/:id", WorkspaceLive, :thread
+      live "/agents", AgentLive, :index
+      live "/agents/new", AgentLive, :new
+      live "/agents/:id/edit", AgentLive, :edit
     end
   end
 

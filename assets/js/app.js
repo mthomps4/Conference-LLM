@@ -24,14 +24,41 @@ import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/jarvis"
 import topbar from "../vendor/topbar"
+import hljs from "highlight.js"
 
 const Hooks = {
   ScrollBottom: {
     mounted() { this.scrollToBottom() },
     updated() { this.scrollToBottom() },
     scrollToBottom() { this.el.scrollTop = this.el.scrollHeight }
+  },
+  Highlight: {
+    mounted() { this.highlight() },
+    updated() { this.highlight() },
+    highlight() {
+      this.el.querySelectorAll("pre code").forEach(block => {
+        if (!block.dataset.highlighted) {
+          hljs.highlightElement(block)
+        }
+      })
+    }
   }
 }
+
+// Copy to clipboard handler
+window.addEventListener("jarvis:copy", (e) => {
+  const text = e.detail.text
+  if (text) {
+    navigator.clipboard.writeText(text).then(() => {
+      // Brief visual feedback - find the button that triggered this
+      const btn = e.target
+      if (btn) {
+        btn.classList.add("text-success")
+        setTimeout(() => btn.classList.remove("text-success"), 1000)
+      }
+    })
+  }
+})
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
@@ -88,4 +115,3 @@ if (process.env.NODE_ENV === "development") {
     window.liveReloader = reloader
   })
 }
-

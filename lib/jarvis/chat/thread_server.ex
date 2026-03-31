@@ -38,9 +38,9 @@ defmodule Jarvis.Chat.ThreadServer do
     end
   end
 
-  def send_message(thread_id, content) do
+  def send_message(thread_id, content, opts \\ []) do
     {:ok, _pid} = ensure_started(thread_id)
-    GenServer.call(via(thread_id), {:send_message, content})
+    GenServer.call(via(thread_id), {:send_message, content, opts})
   end
 
   def stop_streaming(thread_id) do
@@ -71,6 +71,7 @@ defmodule Jarvis.Chat.ThreadServer do
       current_message_id: nil,
       current_persona: nil,
       pending_personas: [],
+      project_context: nil,
       buffer: "",
       ollama_history: [],
       tool_round: 0,
@@ -86,22 +87,29 @@ defmodule Jarvis.Chat.ThreadServer do
   end
 
   @impl true
-  def handle_call({:send_message, _content}, _from, %{status: :streaming} = state) do
+  def handle_call({:send_message, _content, _opts}, _from, %{status: :streaming} = state) do
     {:reply, {:error, :already_streaming}, state}
   end
 
-  def handle_call({:send_message, content}, _from, state) do
+  def handle_call({:send_message, content, opts}, _from, state) do
     thread = Chat.get_thread!(state.thread_id)
-    personas = Chat.personas_for_thread(state.thread_id)
-    is_group = length(personas) > 1
+    thread_personas = Chat.thread_personas_for_thread(state.thread_id)
+    is_group = length(thread_personas) > 1
 
     # Create user message
     {:ok, user_msg} =
       Chat.create_message(state.thread_id, %{role: "user", content: content})
 
-    # Auto-title from first message
+    # Auto-title from first message (skip for general channels)
     now = DateTime.utc_now()
-    title = if is_nil(thread.title), do: String.slice(content, 0..79), else: thread.title
+
+    title =
+      cond do
+        thread.type == "general" -> thread.title
+        is_nil(thread.title) -> String.slice(content, 0..79)
+        true -> thread.title
+      end
+
     {:ok, updated_thread} = Chat.update_thread(thread, %{last_message_at: now, title: title})
 
     broadcast_thread(state.thread_id, {:new_message, user_msg})
@@ -113,11 +121,37 @@ defmodule Jarvis.Chat.ThreadServer do
     # Read thread settings from metadata
     collaboration = get_in(thread.metadata, ["collaboration"]) == true
 
-    # Build persona queue with per-persona paths
-    thread_personas = Chat.thread_personas_for_thread(state.thread_id)
+    # Load project context + decisions if thread belongs to a project
+    project_context =
+      if thread.project_id do
+        project = Jarvis.Projects.get_project!(thread.project_id)
+        decisions = Jarvis.Projects.decisions_context(thread.project_id)
+
+        parts =
+          [
+            project.context,
+            if(decisions, do: "## Key Decisions\n\n#{decisions}")
+          ]
+          |> Enum.reject(&is_nil/1)
+          |> Enum.reject(&(&1 == ""))
+
+        if parts != [], do: Enum.join(parts, "\n\n"), else: nil
+      end
+
+    # Build persona queue — optionally filtered by persona_ids (for @mentions)
+    filter_ids = Keyword.get(opts, :persona_ids)
+
+    filtered_tps =
+      if filter_ids do
+        Enum.filter(thread_personas, fn tp -> tp.persona_id in filter_ids end)
+      else
+        thread_personas
+      end
+
+    filtered_group = length(filtered_tps) > 1
 
     persona_queue =
-      Enum.map(thread_personas, fn tp ->
+      Enum.map(filtered_tps, fn tp ->
         p = tp.persona
         model = if is_group, do: p.group_model || p.model, else: p.model
 
@@ -127,31 +161,40 @@ defmodule Jarvis.Chat.ThreadServer do
           model: model,
           system_prompt: p.system_prompt,
           thinking: p.thinking,
-          group: is_group,
-          paths: tp.paths || []
+          group: filtered_group,
+          paths: tp.paths || [],
+          allowed_tools: tp.allowed_tools || []
         }
       end)
 
-    cancel_timer(state.idle_timer)
+    # Guard: if filtering left no personas, bail out
+    if persona_queue == [] do
+      broadcast_status(state.thread_id, :idle)
+      {:reply, {:error, :no_matching_agents}, state}
+    else
+      cancel_timer(state.idle_timer)
 
-    new_state = %{
-      state
-      | status: :streaming,
-        pending_personas: persona_queue,
-        all_personas: persona_queue,
-        buffer: "",
-        ollama_history: [],
-        tool_round: 0,
-        collaboration: collaboration && is_group,
-        current_round: 1,
-        done_signaled: false,
-        idle_timer: nil
-    }
+      new_state = %{
+        state
+        | status: :streaming,
+          pending_personas: persona_queue,
+          all_personas: persona_queue,
+          project_context: project_context,
+          buffer: "",
+          ollama_history: [],
+          tool_round: 0,
+          collaboration: collaboration && filtered_group,
+          current_round: 1,
+          done_signaled: false,
+          idle_timer: nil
+      }
 
-    new_state = start_next_persona(new_state)
+      new_state = start_next_persona(new_state)
 
-    broadcast_status(state.thread_id, :streaming)
-    {:reply, :ok, new_state}
+      Chat.update_thread_status(state.thread_id, "active")
+      broadcast_status(state.thread_id, :streaming)
+      {:reply, :ok, new_state}
+    end
   end
 
   def handle_call(:stop_streaming, _from, %{status: :streaming} = state) do
@@ -164,6 +207,7 @@ defmodule Jarvis.Chat.ThreadServer do
       broadcast_thread(state.thread_id, {:message_complete, state.current_message_id})
     end
 
+    Chat.update_thread_status(state.thread_id, "idle")
     broadcast_status(state.thread_id, :idle)
     {:reply, :ok, reset_state(state, :idle)}
   end
@@ -277,11 +321,15 @@ defmodule Jarvis.Chat.ThreadServer do
           tool_round: new_round
       })
     else
-      Jarvis.Ollama.stream_chat(
+      Jarvis.LLM.provider().stream_chat(
         self(),
         new_history,
         state.current_persona.model,
-        tools: Tools.definitions(state.current_persona.paths),
+        tools:
+          Tools.definitions(
+            state.current_persona.paths,
+            state.current_persona[:allowed_tools] || []
+          ),
         think: state.current_persona.thinking
       )
 
@@ -326,6 +374,7 @@ defmodule Jarvis.Chat.ThreadServer do
     end
 
     broadcast_thread(state.thread_id, {:message_error, state.current_message_id, reason})
+    Chat.update_thread_status(state.thread_id, "error")
     broadcast_status(state.thread_id, :error)
 
     {:noreply, reset_state(state, :error)}
@@ -403,11 +452,90 @@ defmodule Jarvis.Chat.ThreadServer do
     thread = Chat.get_thread!(state.thread_id)
     {:ok, updated_thread} = Chat.update_thread(thread, %{last_message_at: DateTime.utc_now()})
 
+    # Generate thread summary asynchronously (non-blocking)
+    maybe_generate_summary(state.thread_id)
+
+    # Agent just responded — thread is now waiting for user input
+    Chat.update_thread_status(state.thread_id, "waiting")
     broadcast_status(state.thread_id, :idle)
     broadcast_global({:thread_updated, updated_thread})
 
     {:noreply, reset_state(state, :idle)}
   end
+
+  defp maybe_generate_summary(thread_id) do
+    # Generate a summary asynchronously — don't block the streaming flow
+    Task.start(fn ->
+      try do
+        messages = Chat.list_messages(thread_id)
+
+        # Only summarize threads with enough content
+        if length(messages) >= 4 do
+          recent =
+            messages
+            |> Enum.take(-10)
+            |> Enum.map(fn msg ->
+              name = if msg.persona, do: msg.persona.name, else: "User"
+              "#{name}: #{String.slice(msg.content || "", 0..300)}"
+            end)
+            |> Enum.join("\n")
+
+          prompt = [
+            %{
+              role: "system",
+              content:
+                "Summarize this conversation in 1-2 sentences. Focus on what was decided or accomplished, not the back-and-forth. Be concise."
+            },
+            %{role: "user", content: recent}
+          ]
+
+          llm = Jarvis.LLM.provider()
+
+          case llm.chat(prompt, llm.default_model()) do
+            {:ok, summary} ->
+              thread = Chat.get_thread!(thread_id)
+              Chat.update_thread(thread, %{summary: String.trim(summary)})
+
+            {:error, reason} ->
+              Logger.warning(
+                "Failed to generate summary for thread #{thread_id}: #{inspect(reason)}"
+              )
+          end
+        end
+      rescue
+        e ->
+          Logger.warning(
+            "Summary generation failed for thread #{thread_id}: #{Exception.message(e)}"
+          )
+      end
+    end)
+  end
+
+  @impl true
+  def terminate(:normal, _state), do: :ok
+  def terminate(:shutdown, _state), do: :ok
+
+  def terminate(reason, %{status: :streaming, thread_id: thread_id} = state) do
+    Logger.error("ThreadServer #{thread_id} crashed while streaming: #{inspect(reason)}")
+
+    # Persist whatever was streamed so far
+    if state.current_message_id do
+      message = Chat.get_message!(state.current_message_id)
+
+      content =
+        if state.buffer == "",
+          do: "[Error: process crashed]",
+          else: state.buffer <> "\n\n*[Error: process crashed]*"
+
+      Chat.update_message(message, %{content: content})
+    end
+
+    # Mark thread as error so it's not stuck "active" forever
+    Chat.update_thread_status(thread_id, "error")
+    :ok
+  end
+
+  def terminate(_reason, _state), do: :ok
 
   defp reset_state(state, status) do
     %{
@@ -451,15 +579,17 @@ defmodule Jarvis.Chat.ThreadServer do
         collaboration: state.collaboration,
         current_persona_name: persona.name,
         round: state.current_round,
-        other_persona_names: other_names
+        other_persona_names: other_names,
+        project_context: state.project_context,
+        max_tokens: Jarvis.Models.message_budget(persona.model)
       )
       |> Enum.reject(fn m -> m.content == "" and m.role == "assistant" end)
 
-    Jarvis.Ollama.stream_chat(
+    Jarvis.LLM.provider().stream_chat(
       self(),
       ollama_history,
       persona.model,
-      tools: Tools.definitions(persona.paths),
+      tools: Tools.definitions(persona.paths, persona[:allowed_tools] || []),
       think: persona.thinking
     )
 
