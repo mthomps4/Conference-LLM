@@ -42,5 +42,6 @@ npm-debug.log
 .env
 
 # Claude Code / AI tooling
+.claude/
 .expert/
 

@@ -1,3 +1,0 @@
-- [User Role](user_role.md) — Company owner using JARVIS as internal AI agent management tool
-- [No External API](feedback_no_external_api.md) — JARVIS is internal, not an API product — skip REST/auth/multi-client work
-- [Project Direction](project_direction.md) — Agent dashboard, awaiting-input filter, Slack-like sidebar, per-conversation permissions
